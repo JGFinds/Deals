@@ -1,0 +1,63 @@
+{
+  "hot_deals": [
+    {
+      "name": "Nike Air Max 90",
+      "brand": "Nike",
+      "price": 70,
+      "original_price": 150,
+      "discount": 53,
+      "image": "https://via.placeholder.com/300",
+      "link": "https://example.com/nike-air-max",
+      "timestamp": 1690000000,
+      "categories": ["Shoes","Sneakers"]
+    }
+  ],
+  "shoes": [
+    {
+      "name": "Adidas Ultraboost",
+      "brand": "Adidas",
+      "price": 90,
+      "original_price": 180,
+      "discount": 50,
+      "image": "https://via.placeholder.com/300",
+      "link": "https://example.com/adidas-ultraboost",
+      "timestamp": 1690001000,
+      "categories": ["Shoes","Running"]
+    }
+  ],
+  "mens_clothing": [
+    {
+      "name": "Levi's 501 Jeans",
+      "brand": "Levi's",
+      "price": 45,
+      "original_price": 90,
+      "discount": 50,
+      "image": "https://via.placeholder.com/300",
+      "link": "https://example.com/levis-501",
+      "timestamp": 1690002000,
+      "categories": ["Jeans","Vintage","Y2K"]
+    }
+  ],
+  "womens_clothing": [
+    {
+      "name": "Patagonia Fleece Jacket",
+      "brand": "Patagonia",
+      "price": 60,
+      "original_price": 120,
+      "discount": 50,
+      "image": "https://via.placeholder.com/300",
+      "link": "https://example.com/patagonia-fleece",
+      "timestamp": 1690003000,
+      "categories": ["Jacket","Outdoor"]
+    }
+  ],
+  "flash_sales": [
+    {
+      "name": "Nike Air Max 90",
+      "brand": "Nike",
+      "price": 70,
+      "original_price": 150,
+      "discount": 53
+    }
+  ]
+}
