@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Ultimate Deals Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background-color: #f3f4f6; }
+  .new-badge { position: absolute; top: 0.5rem; right: 0.5rem; background: #FF1493; color: white; font-size: 0.75rem; font-weight: bold; padding: 0.25rem 0.5rem; border-radius: 0.25rem; }
+  .discount-hot { border: 2px solid #FF4500; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0px rgba(255,69,0,0.7); } 50% { box-shadow: 0 0 15px rgba(255,69,0,0.9); } 100% { box-shadow: 0 0 0px rgba(255,69,0,0.7); } }
+  .notification { position: fixed; bottom: 2rem; right: 2rem; background-color: #FF4500; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-weight: bold; z-index: 1000; opacity: 0; transform: translateY(50px); transition: all 0.5s ease; }
+  .notification.show { opacity: 1; transform: translateY(0); }
+  .marketplace-badge { position: absolute; top: 0.5rem; left: 0.5rem; background: #1E90FF; color: white; font-size: 0.65rem; font-weight: bold; padding: 0.2rem 0.4rem; border-radius: 0.25rem; }
+  .category-badge { display: inline-block; background: #4B5563; color: white; font-size: 0.65rem; font-weight: bold; padding: 0.2rem 0.4rem; border-radius: 0.25rem; margin-right: 0.25rem; margin-bottom: 0.25rem; }
+  .category-container { margin-top: 0.5rem; }
+  .filter-btn.active { box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
+  .discount-flash { border: 2px solid #FFA500; }
+  .discount-normal { border: 1px solid #9CA3AF; }
+</style>
+</head>
+<body class="p-4">
+  <h1 class="text-2xl font-bold mb-4">Ultimate Deals Dashboard</h1>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar flex gap-2 mb-4">
+    <button class="filter-btn px-4 py-2 bg-blue-500 text-white rounded active" data-filter="all">All</button>
+    <button class="filter-btn px-4 py-2 bg-green-500 text-white rounded" data-filter="shoes">Shoes</button>
+    <button class="filter-btn px-4 py-2 bg-yellow-500 text-white rounded" data-filter="mens_clothing">Men</button>
+    <button class="filter-btn px-4 py-2 bg-pink-500 text-white rounded" data-filter="womens_clothing">Women</button>
+    <button class="filter-btn px-4 py-2 bg-red-500 text-white rounded" data-filter="hot_deals">Hot Deals</button>
+    <button class="filter-btn px-4 py-2 bg-purple-500 text-white rounded" data-filter="new_items">New Items</button>
+  </div>
+
+  <!-- Sorting Bar -->
+  <div class="sorting-bar flex gap-2 mb-4 items-center">
+    <label class="font-bold">Sort by:</label>
+    <select id="sort-select" class="px-2 py-1 rounded border">
+      <option value="none">Default</option>
+      <option value="price-asc">Price: Low → High</option>
+      <option value="price-desc">Price: High → Low</option>
+      <option value="discount-desc">Discount: High → Low</option>
+      <option value="discount-asc">Discount: Low → High</option>
+    </select>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar flex gap-2 mb-4 items-center">
+    <label class="font-bold">Search:</label>
+    <input id="search-input" type="text" placeholder="Brand or item name" class="px-2 py-1 rounded border w-64">
+  </div>
+
+  <!-- Price Filter -->
+  <div class="price-filter-bar flex gap-4 mb-4 items-center">
+    <label class="font-bold">Price Range:</label>
+    <input id="price-min" type="number" placeholder="Min $" class="px-2 py-1 rounded border w-20">
+    <input id="price-max" type="number" placeholder="Max $" class="px-2 py-1 rounded border w-20">
+    <button id="price-apply" class="px-3 py-1 bg-blue-500 text-white rounded">Apply</button>
+  </div>
+
+  <!-- Flash Sales Ticker -->
+  <div id="flash-ticker" class="mb-4 font-bold text-lg"></div>
+
+  <!-- Deals Container -->
+  <div id="deals-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+
+<script>
+let allDeals = [];
+let lastScrape = parseInt(localStorage.getItem('lastScrape') || '0');
+let notifiedDeals = JSON.parse(localStorage.getItem('notifiedDeals') || "[]");
+
+function showNotification(message) {
+  const notif = document.createElement('div');
+  notif.className = 'notification';
+  notif.innerText = message;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.classList.add('show'), 100);
+  setTimeout(() => { notif.classList.remove('show'); setTimeout(() => notif.remove(), 500); }, 4000);
+}
+
+function createCardHTML(item, lastScrapeTs) {
+  const isNew = item.timestamp && item.timestamp > lastScrapeTs ? '<div class="new-badge">New!</div>' : '';
+  const isMarketplace = item.link && (item.link.includes('poshmark') || item.link.includes('grailed') || item.link.includes('facebook'));
+  const marketplaceBadge = isMarketplace ? '<div class="marketplace-badge">Marketplace</div>' : '';
+  const categoriesHTML = item.categories && item.categories.length ? '<div class="category-container">' + item.categories.map(c=>'<span class="category-badge">'+c+'</span>').join('') + '</div>' : '';
+  const discountClass = item.discount >= 70 ? 'discount-hot' : item.discount >=50 ? 'discount-flash' : 'discount-normal';
+  const originalPrice = item.original_price ? '<span class="line-through text-gray-400">$'+item.original_price+'</span>' : '';
+  return `
+    <div class="${discountClass} bg-white p-4 rounded-lg shadow relative">
+      ${isNew}${marketplaceBadge}
+      <img src="${item.image || 'https://via.placeholder.com/150'}" alt="${item.name || ''}" class="mb-2 rounded w-full">
+      <h3 class="font-bold">${item.name || ''}</h3>
+      <p class="text-gray-700">$${item.price}${originalPrice}</p>
+      <p class="text-red-500 font-semibold">${item.discount || 0}% Off</p>
+      ${categoriesHTML}
+      <a href="${item.link || '#'}" class="text-blue-600 underline" target="_blank" rel="noopener">Buy Now</a>
+    </div>
+  `;
+}
+
+function renderDeals(filter='all', searchTerm='', minPrice=null, maxPrice=null) {
+  let itemsToShow = allDeals.slice();
+
+  if (filter === 'new_items') {
+    itemsToShow = itemsToShow.filter(it => it.timestamp && it.timestamp > lastScrape);
+  } else if (filter === 'hot_deals') {
+    itemsToShow = itemsToShow.filter(it => it.discount >= 70);
+  } else if (filter !== 'all') {
+    itemsToShow = itemsToShow.filter(it => it.type === filter);
+  }
+
+  if (searchTerm && searchTerm.trim()) {
+    const t = searchTerm.toLowerCase();
+    itemsToShow = itemsToShow.filter(it => (it.name && it.name.toLowerCase().includes(t)) || (it.brand && it.brand.toLowerCase().includes(t)));
+  }
+
+  if (minPrice !== null) itemsToShow = itemsToShow.filter(it => it.price >= minPrice);
+  if (maxPrice !== null) itemsToShow = itemsToShow.filter(it => it.price <= maxPrice);
+
+  const sortVal = document.getElementById('sort-select').value;
+  if (sortVal === 'price-asc') itemsToShow.sort((a,b)=>a.price-b.price);
+  else if (sortVal === 'price-desc') itemsToShow.sort((a,b)=>b.price-a.price);
+  else if (sortVal === 'discount-desc') itemsToShow.sort((a,b)=>b.discount-a.discount);
+  else if (sortVal === 'discount-asc') itemsToShow.sort((a,b)=>a.discount-b.discount);
+
+  document.getElementById('deals-container').innerHTML = itemsToShow.map(it => createCardHTML(it, lastScrape)).join('') || '<div class="col-span-full text-center text-gray-600">No deals found</div>';
+}
+
+async function fetchDealsAndPopulate() {
+  try {
+    const resp = await fetch('./deals-feed.json', {cache: "no-store"});
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const data = await resp.json();
+    allDeals = [];
+    ['hot_deals','shoes','mens_clothing','womens_clothing'].forEach(section=>{
+      (data[section]||[]).forEach(item=>{
+        item.type = section;
+        allDeals.push(item);
+      });
+    });
+
+    (data.hot_deals||[]).forEach(item=>{
+      if(!notifiedDeals.includes(item.name)) {
+        showNotification(`🔥 Hot Deal! ${item.brand} ${item.name} $${item.price} (${item.discount}% Off)`);
+        notifiedDeals.push(item.name);
+      }
+    });
+    localStorage.setItem('notifiedDeals', JSON.stringify(notifiedDeals));
+    localStorage.setItem('lastScrape', Math.floor(Date.now()/1000));
+
+    const ticker = (data.flash_sales||[]).map(item=>`${item.brand} ${item.name} $${item.price} (${item.discount}% Off)`).join(' | ');
+    document.getElementById('flash-ticker').innerText = ticker;
+
+    const activeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+    const searchTerm = document.getElementById('search-input').value || '';
+    const minPrice = parseFloat(document.getElementById('price-min').value) || null;
+    const maxPrice = parseFloat(document.getElementById('price-max').value) || null;
+    renderDeals(activeFilter, searchTerm, minPrice, maxPrice);
+
+  } catch (err) {
+    console.error('Failed to load deals-feed.json:', err);
+    document.getElementById('deals-container').innerHTML = '<div class="col-span-full text-center text-red-600">Error loading deals-feed.json — check file path and that it is present.</div>';
+  }
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const active = btn.dataset.filter;
+    const searchTerm = document.getElementById('search-input').value || '';
+    const minPrice = parseFloat(document.getElementById('price-min').value) || null;
+    const maxPrice = parseFloat(document.getElementById('price-max').value) || null;
+    renderDeals(active, searchTerm, minPrice, maxPrice);
+  });
+});
+document.getElementById('sort-select').addEventListener('change', ()=>{
+  const active = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+  const searchTerm = document.getElementById('search-input').value || '';
+  const minPrice = parseFloat(document.getElementById('price-min').value) || null;
+  const maxPrice = parseFloat(document.getElementById('price-max').value) || null;
+  renderDeals(active, searchTerm, minPrice, maxPrice);
+});
+document.getElementById('search-input').addEventListener('input', (e)=>{
+  const active = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+  const minPrice = parseFloat(document.getElementById('price-min').value) || null;
+  const maxPrice = parseFloat(document.getElementById('price-max').value) || null;
+  renderDeals(active, e.target.value, minPrice, maxPrice);
+});
+document.getElementById('price-apply').addEventListener('click', ()=>{
+  const active = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+  const searchTerm = document.getElementById('search-input').value || '';
+  const minPrice = parseFloat(document.getElementById('price-min').value) || null;
+  const maxPrice = parseFloat(document.getElementById('price-max').value) || null;
+  renderDeals(active, searchTerm, minPrice, maxPrice);
+});
+
+fetchDealsAndPopulate();
+setInterval(fetchDealsAndPopulate, 15*60*1000);
+</script>
+</body>
+</html>
