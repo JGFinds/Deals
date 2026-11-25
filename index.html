@@ -79,22 +79,42 @@ function showNotification(message) {
   setTimeout(() => { notif.classList.remove('show'); setTimeout(() => notif.remove(), 500); }, 4000);
 }
 
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[ch]);
+}
+
+function publicURL(value) {
+  if (typeof value !== 'string') return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
 function createCardHTML(item, lastScrapeTs) {
+  const link = publicURL(item.link);
+  const image = publicURL(item.image);
+  const dealLink = link ? '<a href="' + escapeHTML(link) + '" class="text-blue-600 underline" target="_blank" rel="noopener noreferrer">View source</a>' : '';
+  const dealImage = image ? '<img src="' + escapeHTML(image) + '" alt="' + escapeHTML(item.name) + '" class="mb-2 rounded w-full" loading="lazy" referrerpolicy="no-referrer">' : '';
   const isNew = item.timestamp && item.timestamp > lastScrapeTs ? '<div class="new-badge">New!</div>' : '';
-  const isMarketplace = item.link && (item.link.includes('poshmark') || item.link.includes('grailed') || item.link.includes('facebook'));
+  const isMarketplace = link && (link.includes('poshmark') || link.includes('grailed') || link.includes('facebook'));
   const marketplaceBadge = isMarketplace ? '<div class="marketplace-badge">Marketplace</div>' : '';
-  const categoriesHTML = item.categories && item.categories.length ? '<div class="category-container">' + item.categories.map(c=>'<span class="category-badge">'+c+'</span>').join('') + '</div>' : '';
+  const categoriesHTML = Array.isArray(item.categories) && item.categories.length ? '<div class="category-container">' + item.categories.map(c=>'<span class="category-badge">'+escapeHTML(c)+'</span>').join('') + '</div>' : '';
   const discountClass = item.discount >= 70 ? 'discount-hot' : item.discount >=50 ? 'discount-flash' : 'discount-normal';
-  const originalPrice = item.original_price ? '<span class="line-through text-gray-400">$'+item.original_price+'</span>' : '';
+  const originalPrice = item.original_price ? '<span class="line-through text-gray-400">$'+escapeHTML(item.original_price)+'</span>' : '';
   return `
     <div class="${discountClass} bg-white p-4 rounded-lg shadow relative">
       ${isNew}${marketplaceBadge}
-      <img src="${item.image || 'https://via.placeholder.com/150'}" alt="${item.name || ''}" class="mb-2 rounded w-full">
-      <h3 class="font-bold">${item.name || ''}</h3>
-      <p class="text-gray-700">$${item.price}${originalPrice}</p>
-      <p class="text-red-500 font-semibold">${item.discount || 0}% Off</p>
+      ${dealImage}
+      <h3 class="font-bold">${escapeHTML(item.name)}</h3>
+      <p class="text-gray-700">$${escapeHTML(item.price)}${originalPrice}</p>
+      <p class="text-red-500 font-semibold">${escapeHTML(item.discount || 0)}% Off</p>
       ${categoriesHTML}
-      <a href="${item.link || '#'}" class="text-blue-600 underline" target="_blank" rel="noopener">Buy Now</a>
+      ${dealLink}
     </div>
   `;
 }
@@ -124,7 +144,7 @@ function renderDeals(filter='all', searchTerm='', minPrice=null, maxPrice=null) 
   else if (sortVal === 'discount-desc') itemsToShow.sort((a,b)=>b.discount-a.discount);
   else if (sortVal === 'discount-asc') itemsToShow.sort((a,b)=>a.discount-b.discount);
 
-  document.getElementById('deals-container').innerHTML = itemsToShow.map(it => createCardHTML(it, lastScrape)).join('') || '<div class="col-span-full text-center text-gray-600">No deals found</div>';
+  document.getElementById('deals-container').innerHTML = itemsToShow.map(it => createCardHTML(it, lastScrape)).join('') || '<div class="col-span-full text-center text-gray-600">No verified deals to show yet.</div>';
 }
 
 async function fetchDealsAndPopulate() {
