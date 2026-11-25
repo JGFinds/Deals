@@ -1,8 +1,9 @@
-# Ultimate Deals Dashboard (GitHub Pages Ready)
+# Just Good Finds | Deals
 
-This repository contains a static dashboard (index.html) and a JSON feed (deals-feed.json).
-Deploy by uploading to GitHub and enabling Pages (main branch, root).
+Public sourcing dashboard for Just Good Finds. The page reads `deals-feed.json` from the same directory. An empty feed means no verified leads are published yet.
 
-Notes:
-- The dashboard fetches ./deals-feed.json — keep it in repo root.
-- Replace deals-feed.json with live data to power dashboard.
+- [Feed](deals-feed.json)
+- [Publishing and validation](README_AUTOMATION.md)
+- [GitHub Actions](https://github.com/JGFinds/Deals/actions)
+
+This dashboard does not buy items, place bids, or manage store listings. Prices and availability may change; check the linked source before acting.
